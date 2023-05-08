@@ -1,0 +1,170 @@
+//创建users路由器
+const express = require('express')
+const r = express.Router()
+//引入连接池pool
+const pool = require('../pool.js')
+
+//添加路由(接口)
+
+//1.根据id调用所有数据
+//接口地址:http://127.0.0.1:4021/pet/query
+//请求方式:post
+r.get('/query/:id',(req,res,next)=>{
+	var obj=req.params
+	pool.query('select * from tips where id=?',[obj.id],(err,r)=>{
+		if(err){
+			//throw err
+			//如果有错误，交给下一个错误处理中间件
+			next(err)
+			//阻止往后执行
+			return
+		}
+		// console.log(r)
+		if(r.length===0){
+			res.send({code:501,msg:'文章不存在'})
+		}else{
+			res.send({code:200,msg:'查找成功',data:r})
+		}
+	})
+})
+
+//2.医生登录
+//接口地址:http://127.0.0.1:4021/doctor/login
+//请求方式:post
+r.post('/login',(req,res,next)=>{
+    var obj=req.body
+    pool.query('select doc_id from ph_doc_info where doc_phone=?and doc_upwd=?;',[obj.doc_phone,obj.doc_upwd],(err,r)=>{
+        if(err){
+            next(err)
+            return
+        }
+        if(r.length==0){
+            res.send({code:501,msg:'登录失败'})
+        }else{
+            res.send({code:200,msg:'登录成功'})
+        } 
+    })
+})
+
+//3.医生个人信息查询
+//接口地址:http://127.0.0.1:4021/doctor/detail
+//请求方式:post
+r.post('/detail',(req,res,next)=>{
+    var doc_name=req.body.doc_name
+    pool.query('select * from ph_doc_info where doc_name =?',[doc_name],(err,r)=>{
+        if(err){
+            next(err)
+            return
+        }
+        if(r.length==0){
+            res.send({code:501,msg:'用户不存在'})
+        }else{
+            res.send({code:200,msg:'查询成功',data:r})
+        }
+    })
+
+})
+
+//4.医生列表分页显示
+//接口地址:http://127.0.0.1:4021/doctor/list
+//请求方式:get (query)
+r.post('/list',(req,res,next)=>{
+    var obj = req.body
+    //如果页码为空,设置默认值为1
+    if(!obj.page){
+        obj.page=1
+    }
+    if(!obj.num){
+        obj.num=5
+    }
+    var page=(obj.page-1)*obj.num
+    var num=Number(obj.num)
+    pool.query('select * from ph_doc_info limit ?,?',[page,num],(err,r)=>{
+        if(err){
+            next(err)
+            return
+        }
+        if(r.length==0){
+            res.send({code:501,msg:'此页无用户信息'})
+        }else{
+            res.send({code:200,msg:'查询用户列表成功',data:r})
+        }
+    })
+})
+
+//5.医生信息修改
+//接口地址:http://127.0.0.1:4021/doctor/change
+//请求方式:post
+r.post('/change',(req,res,next)=>{
+    var obj=req.body
+    pool.query('update ph_doc_info set doc_name=?,doc_phone=? where doc_id=?',[obj.doc_name,obj.doc_phone,obj.doc_id],(err,r)=>{
+            if(err){
+                next(err)
+                return
+            } 
+            if(r.affectedRows==0){
+                res.send({code:501,msg:'修改失败'})
+            }else{
+                res.send({code:200,msg:'修改成功'})
+            }  
+    })
+})
+
+//6.医生姓名电话查询
+//请求方式:get
+//http://127.0.0.1:4021/doctor/lis
+r.get('/lis',(req,res,next)=>{
+    let sql='select doc_id, doc_name, doc_phone from ph_doc_info'
+    pool.query(sql,[],(err,r)=>{
+        if(err){
+            next(err)
+            return
+        }
+        res.send({code:200,msg:'查询成功',data:r})
+    })
+})
+
+//7.医生信息删除
+//请求方式:post
+//http://127.0.0.1:4021/doctor/del
+r.post('/del',(req,res,next)=>{
+    let body=req.body
+    let sql='delete from ph_doc_info where doc_id = ?'
+    pool.query(sql,[body.doc_id],(err,r)=>{
+        if(err){
+            next(err)
+            return
+        }
+        if(r.affectedRows===0){
+            res.send({code:501,msg:'删除失败,用户不存在'})
+        }else{
+            res.send({code:200,msg:'删除成功'})
+        }
+    })
+})
+
+//8.所有医生信息
+//接口地址:http://127.0.0.1:4021/doctor/all
+//请求方式:get (query)
+r.get('/all',(req,res,next)=>{
+    var obj = req.query
+	
+    pool.query('select * from ph_doc_info',[obj],(err,r)=>{
+        if(err){
+            next(err)
+            return
+        }
+        if(r.length==0){
+            res.send({code:501,msg:'此页无用户信息'})
+        }else{
+            res.send({code:200,msg:'查询用户列表成功',data:r})
+        }
+    })
+})
+
+
+
+
+
+//暴露users路由
+module.exports = r
